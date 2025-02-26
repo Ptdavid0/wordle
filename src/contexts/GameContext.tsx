@@ -1,20 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo } from "react";
 import { generateInitialData } from "../utils/generateInitalData";
-import { ELetterStatus, IGameData, ILetter, ILine } from "../types";
+import { ELetterStatus, IGameContext, ILetter, ILine } from "../types";
 import { isWordValid } from "../utils/checkIfWordIsValid";
 import { reducer } from "../reducers/gameReducer";
 import { getRandomWord } from "../utils/getRandomWord";
-
-interface IGameContext {
-  gameData: IGameData | undefined;
-  handleLetterChange: (
-    event: React.ChangeEvent<HTMLInputElement>,
-    key: string
-  ) => void;
-  checkWord: () => void;
-  shouldButtonBeDisabled: boolean;
-  gameIsReady: boolean;
-}
 
 const GameContext = createContext<IGameContext | undefined>(undefined);
 
@@ -34,6 +23,18 @@ export const GameProvider = ({ children }: React.PropsWithChildren) => {
     fetchWords();
   }, []);
 
+  const currentWord = useMemo(() => {
+    return (
+      state?.lines[state?.currentLine].letters
+        ?.map((letter: ILetter) => letter.letter)
+        .join("") || ""
+    ).toLowerCase();
+  }, [state?.currentLine, state?.lines]);
+
+  const shouldButtonBeDisabled = useMemo(() => {
+    return currentWord.length !== 5;
+  }, [currentWord]);
+
   function handleLetterChange(
     event: React.ChangeEvent<HTMLInputElement>,
     letterKey: string
@@ -50,26 +51,14 @@ export const GameProvider = ({ children }: React.PropsWithChildren) => {
     dispatch({ type: "UPDATE_LINES", payload: newLines });
   }
 
-  const isPerfectMatch = () => {
+  function isPerfectMatch() {
     const currentUserWord = state?.lines[state.currentLine].letters
       .map((letter: ILetter) => letter.letter)
       .join("");
     return currentUserWord === state?.word.toUpperCase();
-  };
+  }
 
-  const currentWord = useMemo(() => {
-    return (
-      state?.lines[state?.currentLine].letters
-        ?.map((letter: ILetter) => letter.letter)
-        .join("") || ""
-    ).toLowerCase();
-  }, [state?.currentLine, state?.lines]);
-
-  const shouldButtonBeDisabled = useMemo(() => {
-    return currentWord.length !== 5;
-  }, [currentWord]);
-
-  const handleWordClean = () => {
+  function handleWordClean() {
     alert(`The word ${currentWord} is not valid`);
     const updatedLines = state?.lines.map((line: ILine) => ({
       ...line,
@@ -80,7 +69,7 @@ export const GameProvider = ({ children }: React.PropsWithChildren) => {
     }));
 
     dispatch({ type: "CLEAN_WORD", payload: updatedLines });
-  };
+  }
 
   function checkWord() {
     if (!isWordValid(currentWord, state?.wordList)) {
@@ -127,7 +116,9 @@ export const GameProvider = ({ children }: React.PropsWithChildren) => {
 
     setTimeout(() => {
       if (isPerfectMatch()) {
-        alert(`Game Over, you won! You used ${state!.currentLine + 1} lines.`);
+        alert(
+          `Congratulations, you won! You used ${state!.currentLine + 1} lines.`
+        );
       } else if (state!.currentLine === 5) {
         alert("Game Over, you lost.");
       }
