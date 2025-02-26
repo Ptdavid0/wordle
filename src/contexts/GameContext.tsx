@@ -29,7 +29,6 @@ export const GameProvider = ({ children }: React.PropsWithChildren) => {
       const { words } = (await response.json()) || {};
       dispatch({ type: "SET_WORD", payload: getRandomWord(words) });
       dispatch({ type: "SET_WORD_ARRAY", payload: words });
-      console.log(words);
     }
 
     fetchWords();
