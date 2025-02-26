@@ -9,6 +9,8 @@ export interface IGameData {
   currentLine: number;
   word: string;
   lines: ILine[];
+  gameIsReady: boolean;
+  wordList: string[];
 }
 
 export interface ILine {

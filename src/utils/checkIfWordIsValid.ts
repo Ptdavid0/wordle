@@ -1,3 +1,2 @@
-import { fiveLetterWordArray } from "../constants/fiveLetterWords";
-
-export const isWordValid = (word: string) => fiveLetterWordArray.includes(word);
+export const isWordValid = (word: string, wordList: string[]) =>
+  wordList.includes(word);

@@ -1,4 +1,5 @@
-import { fiveLetterWordArray } from "../constants/fiveLetterWords";
-
-export const getRandomWord = () =>
-  fiveLetterWordArray[Math.floor(Math.random() * fiveLetterWordArray.length)];
+export const getRandomWord = (fiveLetterWordArray: string[]) => {
+  return fiveLetterWordArray[
+    Math.floor(Math.random() * fiveLetterWordArray.length)
+  ];
+};

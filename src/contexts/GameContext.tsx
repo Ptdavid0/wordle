@@ -1,13 +1,9 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { createContext, useContext, useEffect, useMemo } from "react";
 import { generateInitialData } from "../utils/generateInitalData";
-import { ELetterStatus, IGameData } from "../types";
+import { ELetterStatus, IGameData, ILetter, ILine } from "../types";
 import { isWordValid } from "../utils/checkIfWordIsValid";
+import { reducer } from "../reducers/gameReducer";
+import { getRandomWord } from "../utils/getRandomWord";
 
 interface IGameContext {
   gameData: IGameData | undefined;
@@ -16,23 +12,34 @@ interface IGameContext {
     key: string
   ) => void;
   checkWord: () => void;
+  shouldButtonBeDisabled: boolean;
+  gameIsReady: boolean;
 }
 
 const GameContext = createContext<IGameContext | undefined>(undefined);
 
 export const GameProvider = ({ children }: React.PropsWithChildren) => {
-  const [gameData, setGameData] = useState<IGameData>();
+  const [state, dispatch] = React.useReducer(reducer, generateInitialData());
 
   useEffect(() => {
-    const initialData = generateInitialData();
-    setGameData(initialData);
+    async function fetchWords() {
+      const response = await fetch(
+        "https://cheaderthecoder.github.io/5-Letter-words/words.json"
+      );
+      const { words } = (await response.json()) || {};
+      dispatch({ type: "SET_WORD", payload: getRandomWord(words) });
+      dispatch({ type: "SET_WORD_ARRAY", payload: words });
+      console.log(words);
+    }
+
+    fetchWords();
   }, []);
 
   function handleLetterChange(
     event: React.ChangeEvent<HTMLInputElement>,
     letterKey: string
   ) {
-    const newLines = gameData?.lines.map((line) => ({
+    const newLines = state?.lines.map((line: ILine) => ({
       ...line,
       letters: line.letters.map((letter) =>
         letter.key === letterKey
@@ -41,54 +48,56 @@ export const GameProvider = ({ children }: React.PropsWithChildren) => {
       ),
     }));
 
-    setGameData({ ...gameData, lines: newLines });
+    dispatch({ type: "UPDATE_LINES", payload: newLines });
   }
 
   const isPerfectMatch = () => {
-    const currentUserWord = gameData?.lines[gameData.currentLine].letters
-      .map((letter) => letter.letter)
+    const currentUserWord = state?.lines[state.currentLine].letters
+      .map((letter: ILetter) => letter.letter)
       .join("");
-    return currentUserWord === gameData?.word.toUpperCase();
+    return currentUserWord === state?.word.toUpperCase();
   };
 
   const currentWord = useMemo(() => {
     return (
-      gameData?.lines[gameData?.currentLine].letters
-        ?.map((letter) => letter.letter)
+      state?.lines[state?.currentLine].letters
+        ?.map((letter: ILetter) => letter.letter)
         .join("") || ""
     ).toLowerCase();
-  }, [gameData?.currentLine, gameData?.lines]);
+  }, [state?.currentLine, state?.lines]);
+
+  const shouldButtonBeDisabled = useMemo(() => {
+    return currentWord.length !== 5;
+  }, [currentWord]);
 
   const handleWordClean = () => {
     alert(`The word ${currentWord} is not valid`);
-    const updatedLines = gameData?.lines.map((line) => ({
+    const updatedLines = state?.lines.map((line: ILine) => ({
       ...line,
       letters: line.letters.map((letter) => {
-        if (line.line !== gameData.currentLine) return letter;
+        if (line.line !== state.currentLine) return letter;
         else return { ...letter, letter: "" };
       }),
     }));
-    setGameData((prev) => ({
-      ...prev,
-      lines: updatedLines,
-    }));
+
+    dispatch({ type: "CLEAN_WORD", payload: updatedLines });
   };
 
   function checkWord() {
-    if (!isWordValid(currentWord)) {
+    if (!isWordValid(currentWord, state?.wordList)) {
       handleWordClean();
       return;
     }
 
-    const correctWord = gameData?.word?.toUpperCase()?.split("") || "";
+    const correctWord = state?.word?.toUpperCase()?.split("") || "";
 
     const remainingLetters = [...correctWord];
 
     // Check for matches or incorrect
-    const newLines = gameData?.lines.map((line) => ({
+    const newLines = state?.lines.map((line: ILine) => ({
       ...line,
       letters: line.letters.map((letter, index) => {
-        if (line.line !== gameData.currentLine) return letter;
+        if (line.line !== state.currentLine) return letter;
 
         let newStatus = ELetterStatus.WRONG;
 
@@ -102,7 +111,7 @@ export const GameProvider = ({ children }: React.PropsWithChildren) => {
     }));
 
     // Verify misplaced letters
-    newLines?.[gameData!.currentLine].letters.forEach((letter) => {
+    newLines?.[state!.currentLine].letters.forEach((letter: ILetter) => {
       if (
         letter.status === ELetterStatus.WRONG &&
         remainingLetters.includes(letter.letter)
@@ -112,23 +121,30 @@ export const GameProvider = ({ children }: React.PropsWithChildren) => {
       }
     });
 
-    setGameData((prev) => ({
-      ...prev,
-      currentLine: prev?.currentLine + 1,
-      lines: newLines,
-    }));
+    dispatch({
+      type: "CONCLUDE_TURN",
+      payload: newLines,
+    });
 
-    if (isPerfectMatch()) {
-      alert(
-        `Game is Over, you won. Congratulations on using only ${
-          gameData?.currentLine && gameData?.currentLine + 1
-        } lines`
-      );
-    }
+    setTimeout(() => {
+      if (isPerfectMatch()) {
+        alert(`Game Over, you won! You used ${state!.currentLine + 1} lines.`);
+      } else if (state!.currentLine === 5) {
+        alert("Game Over, you lost.");
+      }
+    }, 100);
   }
 
   return (
-    <GameContext.Provider value={{ gameData, handleLetterChange, checkWord }}>
+    <GameContext.Provider
+      value={{
+        gameData: state,
+        handleLetterChange,
+        checkWord,
+        shouldButtonBeDisabled,
+        gameIsReady: state.gameIsReady,
+      }}
+    >
       {children}
     </GameContext.Provider>
   );

@@ -1,10 +1,11 @@
 import { ELetterStatus, IGameData } from "../types";
-import { getRandomWord } from "./getRandomWord";
 
 export function generateInitialData(): IGameData {
   return {
     currentLine: 0,
-    word: getRandomWord(),
+    gameIsReady: false,
+    word: "",
+    wordList: [],
     lines: Array.from({ length: 6 }, (_, rowIndex) => {
       return {
         key: `Line-${rowIndex}`,
